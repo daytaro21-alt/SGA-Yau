@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sga_yau_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin_yau}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+      POSTGRES_DB: ${POSTGRES_DB:-db_yau}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-admin_yau} -d $${POSTGRES_DB:-db_yau}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sga_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sga_yau_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin_yau}:${POSTGRES_PASSWORD:-password123}@db:5432/${POSTGRES_DB:-db_yau}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sga_network
+
+networks:
+  sga_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
