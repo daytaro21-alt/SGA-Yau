@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.router import api_router
+from app.services.predictor import load_model
 
 # Inicializar la aplicación FastAPI con configuraciones de documentación
 app = FastAPI(
@@ -11,6 +12,11 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Cargar el modelo de NLP globalmente en memoria durante el inicio del servidor
+@app.on_event("startup")
+def startup_event():
+    load_model()
 
 # Configurar CORS (Cross-Origin Resource Sharing)
 # Permite solicitudes desde la aplicación móvil Android y clientes web durante el desarrollo

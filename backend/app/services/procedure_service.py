@@ -4,6 +4,7 @@ from app.models.procedure import Procedure
 from app.models.citizen import Citizen
 from app.models.status import ProcedureStatus
 from app.schemas.procedure import ProcedureCreate
+from app.services.predictor import predecir
 from fastapi import HTTPException, status
 
 class ProcedureService:
@@ -15,7 +16,8 @@ class ProcedureService:
     def create_procedure(db: Session, procedure_data: ProcedureCreate) -> Procedure:
         """
         Crea y registra un nuevo trámite en el sistema asociado a un ciudadano.
-        Genera automáticamente un código de trámite único y asigna el estado 'Pendiente'.
+        Genera automáticamente un código de trámite único, asigna el estado 'Pendiente'
+        y predice la prioridad sugerida mediante el motor de Machine Learning.
         """
         # 1. Validar que el ciudadano exista
         citizen = db.query(Citizen).filter(Citizen.id == procedure_data.citizen_id).first()
@@ -36,7 +38,11 @@ class ProcedureService:
         # 3. Generar un código único único para el seguimiento
         unique_code = f"YAU-{uuid.uuid4().hex[:8].upper()}"
 
-        # 4. Crear la entidad de base de datos
+        # 4. Invocar el modelo de Machine Learning de forma directa
+        texto_para_ml = f"{procedure_data.title} {procedure_data.description}"
+        prioridad_sugerida, confianza = predecir(texto_para_ml)
+
+        # 5. Crear la entidad de base de datos
         new_procedure = Procedure(
             unique_code=unique_code,
             citizen_id=procedure_data.citizen_id,
@@ -45,22 +51,17 @@ class ProcedureService:
             extracted_text=procedure_data.extracted_text,
             procedure_type=procedure_data.procedure_type,
             status_id=initial_status.id,
-            # Los campos del modelo de Machine Learning inician vacíos hasta la clasificación asíncrona
-            suggested_priority=None,
+            # Registrar datos de inferencia
+            suggested_priority=prioridad_sugerida,
             real_priority=None,
-            prediction_confidence=None,
-            model_version=None,
-            prediction_metadata=None
+            prediction_confidence=confianza,
+            model_version="1.0.0",
+            prediction_metadata={"algoritmo": "Random Forest + TF-IDF"}
         )
 
         db.add(new_procedure)
         db.commit()
         db.refresh(new_procedure)
-
-        # NOTA DE INTEGRACIÓN ML:
-        # En esta fase se podría despachar una tarea asíncrona (ej. Celery, BackgroundTasks de FastAPI)
-        # para invocar al modelo NLP que analizará el texto en `new_procedure.description` y/o 
-        # `new_procedure.extracted_text` para predecir la prioridad sugerida.
 
         return new_procedure
 
