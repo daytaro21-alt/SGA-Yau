@@ -25,6 +25,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: sga_yau_backend
+    init: true
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -35,6 +36,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - sga_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sga_yau_frontend
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
     networks:
       - sga_network
 
