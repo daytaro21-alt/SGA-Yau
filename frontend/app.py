@@ -96,7 +96,7 @@ seccion = st.sidebar.radio(
 )
 
 # URL interna de comunicación de contenedor a contenedor
-BACKEND_URL = "http://backend:8000"BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 
 if seccion == "Gestión de Trámites":
     st.header("Control de Trámites Documentales")
